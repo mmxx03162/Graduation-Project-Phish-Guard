@@ -1,0 +1,13 @@
+# Python / Django
+# تجاهل مجلد البيئة الافتراضية الموجود في المجلد الرئيسي
+D:\Graduation Project\Graduation Project\venv\
+
+# تجاهل الملفات المؤقتة داخل مشروع الباك إند
+D:\Graduation Project\Graduation Project\phish_guard_backend\__pycache__\
+D:\Graduation Project\Graduation Project\phish_guard_backend\*.pyc
+D:\Graduation Project\Graduation Project\phish_guard_backend\db.sqlite3
+
+# Node / React
+# تجاهل مجلد المكتبات الضخم داخل مشروع الفرونت إند
+D:\Graduation Project\Graduation Project\Front end\phish-guard-dashboard\node_modules\
+D:\Graduation Project\Graduation Project\Front end\phish-guard-dashboard\dist\
