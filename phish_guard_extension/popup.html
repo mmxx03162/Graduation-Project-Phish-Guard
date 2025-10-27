@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Phish-Guard</title>
     <style>
+        /* Basic styling for the extension popup */
         body {
             font-family: Arial, sans-serif;
             width: 250px;
@@ -11,6 +12,7 @@
             padding: 10px;
             margin: 0;
         }
+        /* Button styling with hover effects */
         button {
             width: 100%;
             padding: 10px;
@@ -24,6 +26,7 @@
         button:hover {
             background-color: #45a049;
         }
+        /* Result display styling */
         #result {
             margin-top: 15px;
             font-size: 18px;
@@ -32,9 +35,16 @@
     </style>
 </head>
 <body>
+    <!-- Extension header -->
     <h3>🛡️ Phish-Guard</h3>
+    
+    <!-- Main action button for scanning current page -->
     <button id="checkButton">Check Current Site</button>
+    
+    <!-- Result display area -->
     <div id="result"></div>
+    
+    <!-- Include the JavaScript functionality -->
     <script src="popup.js"></script>
 </body>
 </html>

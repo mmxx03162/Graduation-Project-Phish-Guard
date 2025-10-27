@@ -1,4 +1,6 @@
-# api/views.py - نسخة محسنة
+# api/views.py - Enhanced version with comprehensive English comments
+# API views for the Phish-Guard phishing detection system
+# This module handles HTTP requests and responses for URL scanning and data retrieval
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -14,7 +16,7 @@ from .predictor import make_prediction, get_models_status
 import logging
 import time
 
-# استيراد اختياري لـ django_filters
+# Optional import for django_filters
 try:
     from django_filters.rest_framework import DjangoFilterBackend
     DJANGO_FILTERS_AVAILABLE = True
@@ -22,12 +24,21 @@ except ImportError:
     DJANGO_FILTERS_AVAILABLE = False
     DjangoFilterBackend = None
 
-# إعداد الـ logging
+# Configure logging for the application
 logger = logging.getLogger(__name__)
 
 def add_cors_headers(response):
     """
-    إضافة CORS headers للاستجابة
+    Add CORS (Cross-Origin Resource Sharing) headers to the response.
+    
+    This function enables cross-origin requests from web browsers,
+    allowing the frontend to communicate with the backend API.
+    
+    Args:
+        response: The HTTP response object to modify
+        
+    Returns:
+        Response: The response with CORS headers added
     """
     response['Access-Control-Allow-Origin'] = '*'
     response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -39,29 +50,39 @@ def add_cors_headers(response):
 @api_view(['POST'])
 def scan_url_view(request):
     """
-    API endpoint لفحص الـ URLs وتحديد ما إذا كانت phishing أم لا
+    API endpoint for scanning URLs and determining if they are phishing or legitimate.
+    
+    This view receives a URL in the request body, processes it through the
+    machine learning models, and returns the classification result along with
+    metadata about the scan.
+    
+    Args:
+        request: HTTP request object containing the URL to scan
+        
+    Returns:
+        Response: JSON response with scan results and metadata
     """
     start_time = time.time()
     
     try:
-        # التحقق من البيانات المرسلة
+        # Validate the incoming request data
         serializer = ScanResultSerializer(data=request.data)
         
         if serializer.is_valid():
-            # استخراج الـ URL
+            # Extract the URL from the validated data
             url_to_check = serializer.validated_data['url']
             logger.info(f"Analyzing URL: {url_to_check}")
             
-            # التنبؤ باستخدام الموديلات
+            # Make prediction using the machine learning models
             prediction_result = make_prediction(url_to_check)
             
-            # حساب وقت المعالجة
+            # Calculate processing time
             processing_time = time.time() - start_time
             
-            # حفظ النتيجة في قاعدة البيانات
+            # Save the result to the database
             scan_result = serializer.save(result=prediction_result)
             
-            # إعداد الاستجابة
+            # Prepare the response data
             response_data = {
                 'id': scan_result.id,
                 'url': scan_result.url,
@@ -95,7 +116,16 @@ def scan_url_view(request):
 @api_view(['GET'])
 def models_status_view(request):
     """
-    API endpoint لعرض حالة الموديلات
+    API endpoint for displaying the status of machine learning models.
+    
+    This view provides information about which models are loaded and ready
+    for making predictions, helping with system monitoring and debugging.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Response: JSON response with model status information
     """
     try:
         models_status = get_models_status()
@@ -121,7 +151,16 @@ def models_status_view(request):
 @api_view(['GET'])
 def health_check_view(request):
     """
-    API endpoint للتحقق من صحة النظام
+    API endpoint for system health verification.
+    
+    This endpoint provides basic information about the system status,
+    available API endpoints, and service configuration.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Response: JSON response with system health information
     """
     return Response({
         'status': 'healthy',
@@ -142,7 +181,16 @@ def health_check_view(request):
 @api_view(['GET', 'POST', 'OPTIONS'])
 def connection_test_view(request):
     """
-    API endpoint لاختبار الاتصال من الواجهة الأمامية
+    API endpoint for testing connection from the frontend.
+    
+    This endpoint helps verify that the backend is accessible and
+    CORS is properly configured for frontend-backend communication.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        Response: JSON response with connection status
     """
     if request.method == 'OPTIONS':
         return Response({'status': 'ok'}, status=status.HTTP_200_OK)
@@ -160,46 +208,58 @@ def connection_test_view(request):
 # --- Pagination Class ---
 class ScanResultPagination(PageNumberPagination):
     """
-    كلاس للتحكم في التقسيم (Pagination) للنتائج
+    Custom pagination class for controlling result pagination.
+    
+    This class defines how scan results are divided into pages,
+    allowing for efficient handling of large datasets.
     """
-    page_size = 20  # عدد النتائج في كل صفحة
-    page_size_query_param = 'page_size'  # إمكانية تغيير حجم الصفحة من الـ URL
-    max_page_size = 100  # الحد الأقصى للنتائج في الصفحة الواحدة
+    page_size = 20  # Number of results per page
+    page_size_query_param = 'page_size'  # Allow changing page size via URL parameter
+    max_page_size = 100  # Maximum number of results per page
 
 
 # --- ScanLogView Class ---
 class ScanLogView(generics.ListAPIView):
     """
-    هذا الـ View يقرأ كل سجلات الفحص من قاعدة البيانات ويرجعها.
-    ListAPIView يقوم بكل العمل الشاق بالنيابة عنا.
-    """
-    queryset = ScanResult.objects.all().order_by('-timestamp')  # 1. احصل على كل السجلات، ورتبها من الأحدث للأقدم
-    serializer_class = ScanResultSerializer  # 2. استخدم هذا الـ Serializer لتحويلها إلى JSON
-    pagination_class = ScanResultPagination  # 3. استخدم التقسيم المخصص
+    View for reading all scan records from the database and returning them.
     
-    # 4. إضافة فلاتر البحث والترتيب (مع التحقق من توفر django_filters)
+    This view uses Django REST Framework's ListAPIView which handles
+    most of the heavy lifting for us, including serialization, pagination,
+    filtering, and ordering.
+    """
+    queryset = ScanResult.objects.all().order_by('-timestamp')  # Get all records, ordered from newest to oldest
+    serializer_class = ScanResultSerializer  # Use this serializer to convert to JSON
+    pagination_class = ScanResultPagination  # Use custom pagination
+    
+    # Add search and ordering filters (with django_filters availability check)
     filter_backends = [SearchFilter, OrderingFilter]
     if DJANGO_FILTERS_AVAILABLE:
         filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     
-    # 5. تحديد الحقول التي يمكن البحث فيها
+    # Define fields that can be searched
     search_fields = ['url', 'result']
     
-    # 6. تحديد الحقول التي يمكن ترتيب النتائج حسبها
+    # Define fields that results can be ordered by
     ordering_fields = ['timestamp', 'result', 'url']
-    ordering = ['-timestamp']  # الترتيب الافتراضي
+    ordering = ['-timestamp']  # Default ordering
     
-    # 7. تحديد الحقول التي يمكن فلترتها (فقط إذا كان django_filters متوفر)
+    # Define fields that can be filtered (only if django_filters is available)
     if DJANGO_FILTERS_AVAILABLE:
         filterset_fields = ['result']
     
     def get_queryset(self):
         """
-        تحسين الاستعلام لتحسين الأداء
+        Optimize the query for better performance.
+        
+        This method allows for additional filtering based on query parameters,
+        such as date ranges, to provide more targeted results.
+        
+        Returns:
+            QuerySet: Filtered and optimized queryset
         """
         queryset = super().get_queryset()
         
-        # إضافة فلتر حسب التاريخ (اختياري)
+        # Add optional date filtering
         date_from = self.request.query_params.get('date_from', None)
         date_to = self.request.query_params.get('date_to', None)
         

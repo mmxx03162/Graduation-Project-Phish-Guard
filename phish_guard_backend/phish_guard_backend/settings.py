@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+# This defines the base directory for the Django project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -20,53 +21,64 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# This secret key is used for cryptographic signing and should be kept secure
 SECRET_KEY = 'django-insecure-*i@sx0azccfjqq8ao%t_u#e103)z)qh&5izr$(yw4*om*!1^60'
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# Debug mode provides detailed error pages and should be disabled in production
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']  # للاختبار فقط
+# Allowed hosts for the Django application
+# '*' allows all hosts - suitable for development only
+ALLOWED_HOSTS = ['*']  # For testing only - should be restricted in production
 
 
 # Application definition
+# List of Django applications that are enabled in this project
 
 INSTALLED_APPS = [
-    'corsheaders',  # إضافة corsheaders
-    'rest_framework',
-    'api.apps.ApiConfig',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'corsheaders',  # Add corsheaders for cross-origin resource sharing
+    'rest_framework',  # Django REST Framework for API development
+    'api.apps.ApiConfig',  # Our custom API application
+    'django.contrib.admin',  # Django admin interface
+    'django.contrib.auth',  # Django authentication system
+    'django.contrib.contenttypes',  # Django content types framework
+    'django.contrib.sessions',  # Django session framework
+    'django.contrib.messages',  # Django messaging framework
+    'django.contrib.staticfiles',  # Django static files handling
 ]
 
+# Middleware configuration
+# Middleware classes are executed in the order listed
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # يجب أن يكون في الأول
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
-# CORS settings - إعدادات شاملة للاتصال
-CORS_ALLOW_ALL_ORIGINS = True  # للاختبار فقط
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-    "http://localhost:5173",  # Vite dev server
-    "http://127.0.0.1:5173",
-    "http://localhost:4200",  # Angular dev server
-    "http://127.0.0.1:4200",
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware must be first
+    'django.middleware.security.SecurityMiddleware',  # Security enhancements
+    'django.contrib.sessions.middleware.SessionMiddleware',  # Session management
+    'django.middleware.common.CommonMiddleware',  # Common functionality
+    'django.middleware.csrf.CsrfViewMiddleware',  # CSRF protection
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # User authentication
+    'django.contrib.messages.middleware.MessageMiddleware',  # Message handling
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',  # Clickjacking protection
 ]
 
-# CORS headers إضافية
+# CORS settings - Comprehensive settings for cross-origin requests
+# CORS_ALLOW_ALL_ORIGINS should only be True for development
+CORS_ALLOW_ALL_ORIGINS = True  # For testing only - restrict in production
+CORS_ALLOW_CREDENTIALS = True  # Allow credentials in CORS requests
+
+# Specific allowed origins for CORS requests
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React development server
+    "http://127.0.0.1:3000",  # React development server (alternative)
+    "http://localhost:8080",  # Vue.js development server
+    "http://127.0.0.1:8080",  # Vue.js development server (alternative)
+    "http://localhost:5173",  # Vite development server
+    "http://127.0.0.1:5173",  # Vite development server (alternative)
+    "http://localhost:4200",  # Angular development server
+    "http://127.0.0.1:4200",  # Angular development server (alternative)
+]
+
+# Additional CORS headers that are allowed
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -79,6 +91,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# HTTP methods allowed for CORS requests
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -89,53 +102,50 @@ CORS_ALLOW_METHODS = [
 ]
 
 
+# URL configuration
+# Points to the main URL configuration module
 ROOT_URLCONF = 'phish_guard_backend.urls'
 
+# Template configuration
+# Defines how Django templates are loaded and processed
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [],  # Additional template directories
+        'APP_DIRS': True,  # Look for templates in app directories
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',  # Request context
+                'django.contrib.auth.context_processors.auth',  # User context
+                'django.contrib.messages.context_processors.messages',  # Messages context
             ],
         },
     },
 ]
 
+# WSGI application configuration
+# Points to the WSGI application for deployment
 WSGI_APPLICATION = 'phish_guard_backend.wsgi.application'
 
 
-# Database
+# Database configuration
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-
+# PostgreSQL database configuration for production use
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'phish_guard_backend',
-        'USER': 'postgres',
-        'PASSWORD': '123',
-        'HOST': 'localhost',   
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.postgresql',  # PostgreSQL database engine
+        'NAME': 'phish_guard_backend',  # Database name
+        'USER': 'postgres',  # Database user
+        'PASSWORD': '123',  # Database password
+        'HOST': 'localhost',  # Database host
+        'PORT': '5432',  # Database port
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
+# Alternative SQLite database configuration (commented out)
+# Uncomment this section and comment out the PostgreSQL configuration above
+# to use SQLite for development
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
@@ -147,6 +157,7 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
+# Password validation rules for user authentication
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -166,56 +177,54 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
+# Language and timezone settings
+LANGUAGE_CODE = 'en-us'  # Default language for the application
+TIME_ZONE = 'UTC'  # Default timezone
+USE_I18N = True  # Enable internationalization
+USE_TZ = True  # Enable timezone support
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+# URL prefix for static files
 STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
+# Use BigAutoField as the default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-
 # REST Framework settings
+# Configuration for Django REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [],
-    'DEFAULT_PERMISSION_CLASSES': [],
+    'DEFAULT_AUTHENTICATION_CLASSES': [],  # No authentication required for API
+    'DEFAULT_PERMISSION_CLASSES': [],  # No permissions required for API
     'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.JSONRenderer',  # Use JSON for API responses
     ],
     'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.JSONParser',  # Parse JSON requests
+        'rest_framework.parsers.FormParser',  # Parse form data
+        'rest_framework.parsers.MultiPartParser',  # Parse multipart data
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    'PAGE_SIZE': 20,  # Number of items per page
 }
 
-# إعدادات إضافية للاتصال
-USE_TZ = True
-TIME_ZONE = 'UTC'
+# Additional connection settings
+# Timezone configuration
+USE_TZ = True  # Enable timezone support
+TIME_ZONE = 'UTC'  # Set timezone to UTC
 
-# إعدادات الأمان للاختبار
-SECURE_CROSS_ORIGIN_OPENER_POLICY = None
-SECURE_REFERRER_POLICY = None
+# Security settings for testing
+# These settings are for development and should be configured properly for production
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None  # Allow cross-origin requests
+SECURE_REFERRER_POLICY = None  # Allow referrer information
 
-# إعدادات الجلسة
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
-
-
-
-
-# تم نقل هذه الإعدادات أعلاه 
+# Session configuration
+# Cookie settings for session management
+SESSION_COOKIE_SAMESITE = 'Lax'  # Session cookie SameSite policy
+CSRF_COOKIE_SAMESITE = 'Lax'  # CSRF cookie SameSite policy

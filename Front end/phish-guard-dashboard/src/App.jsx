@@ -1,4 +1,6 @@
-// src/App.jsx - متوافق مع Django API
+// src/App.jsx - Compatible with Django API
+// Main React application component for the Phish-Guard Dashboard
+// This component manages the overall application state and coordinates data fetching
 
 import { useState, useEffect } from 'react';
 import './App.css';
@@ -6,11 +8,12 @@ import ScanLogTable from './components/ScanLogTable';
 import ScanSummaryChart from './components/ScanSummaryChart';
 
 function App() {
-  const [scans, setScans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [backendConnected, setBackendConnected] = useState(false);
+  // State management for the application
+  const [scans, setScans] = useState([]);  // Array to store scan results from the backend
+  const [loading, setLoading] = useState(true);  // Loading state for UI feedback
+  const [error, setError] = useState(null);  // Error state for handling connection issues
+  const [lastUpdate, setLastUpdate] = useState(null);  // Timestamp of last successful data fetch
+  const [backendConnected, setBackendConnected] = useState(false);  // Backend connection status
 
   // Fetch data from Django Backend
   const fetchScans = async () => {
@@ -19,9 +22,11 @@ function App() {
       
       console.log('🔄 Attempting to connect to backend...');
       
+      // Set up request timeout and abort controller for better error handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
       
+      // Make API request to Django backend
       const response = await fetch('http://127.0.0.1:8000/api/logs/', {
         signal: controller.signal,
         method: 'GET',
@@ -29,22 +34,25 @@ function App() {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        mode: 'cors',
+        mode: 'cors',  // Enable CORS for cross-origin requests
       });
       
       clearTimeout(timeoutId);
       
+      // Check if the response is successful
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
+      // Parse the JSON response
       const data = await response.json();
       
-      // Django API returns paginated data with 'results' key
+      // Handle Django API paginated data structure
       const results = data.results || data;
       
       console.log('✅ Backend connected! Records:', results.length);
       
+      // Update state with fetched data
       setScans(results);
       setLastUpdate(new Date());
       setError(null);
@@ -53,6 +61,7 @@ function App() {
     } catch (err) {
       console.error('❌ Backend error:', err);
       
+      // Handle different types of errors with user-friendly messages
       let errorMessage = 'Cannot connect to backend';
       
       if (err.name === 'AbortError') {
@@ -71,20 +80,22 @@ function App() {
     }
   };
 
+  // Effect hook to handle initial data loading and auto-refresh
   useEffect(() => {
     fetchScans();
     
-    // Auto refresh every 30 seconds
+    // Set up auto-refresh every 30 seconds for real-time updates
     const interval = setInterval(() => {
       if (!loading && backendConnected) {
         fetchScans();
       }
     }, 30000);
     
+    // Cleanup interval on component unmount
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate statistics
+  // Calculate statistics from scan data
   const stats = {
     total: scans.length,
     phishing: scans.filter(s => s.result === 'Phishing').length,
@@ -93,15 +104,17 @@ function App() {
 
   return (
     <div className="dashboard">
-      {/* Header */}
+      {/* Header Section */}
       <header className="dashboard-header">
         <h1>🛡️ Phish-Guard Dashboard</h1>
         <div className="header-info">
+          {/* Display last update time */}
           {lastUpdate && (
             <span className="last-update">
               Last updated: {lastUpdate.toLocaleTimeString()}
             </span>
           )}
+          {/* Manual refresh button */}
           <button 
             className="refresh-btn" 
             onClick={fetchScans}
@@ -140,6 +153,7 @@ function App() {
             </span>
           </div>
         </div>
+        {/* Retry connection button for failed connections */}
         {!backendConnected && (
           <button 
             onClick={fetchScans}
@@ -169,7 +183,7 @@ function App() {
         </div>
       )}
 
-      {/* Error Details */}
+      {/* Error Details Section */}
       {error && !backendConnected && (
         <div className="error-message">
           <div className="error-content">
@@ -191,10 +205,10 @@ function App() {
         </div>
       )}
 
-      {/* Show content only if connected or has data */}
+      {/* Main Content - Only show if connected or has data */}
       {(backendConnected || scans.length > 0) && (
         <>
-          {/* Statistics Cards */}
+          {/* Statistics Cards Section */}
           <section className="additional-stats">
             <div className="stats-cards">
               <div className="stat-card">
@@ -232,7 +246,7 @@ function App() {
         </>
       )}
 
-      {/* Empty State */}
+      {/* Empty State - Show when no connection and no data */}
       {!loading && !backendConnected && scans.length === 0 && (
         <div style={{
           textAlign: 'center',

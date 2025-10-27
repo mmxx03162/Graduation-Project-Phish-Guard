@@ -21,3 +21,9 @@ class ScanResult(models.Model):
     # هتفيدنا جدًا في لوحة التحكم بعدين عشان نشوف اللينك بدل ما نشوف "(Object (1"
     def __str__(self):
         return self.url
+    
+    
+    
+    
+    
+    

@@ -1,21 +1,27 @@
 // src/components/ScanLogTable.jsx
+// React component for displaying scan results in a sortable and filterable table
+// This component provides comprehensive data visualization for URL scan results
 
 import { useState } from 'react';
 
 function ScanLogTable({ scans = [] }) {
-  const [sortField, setSortField] = useState('timestamp');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [filterResult, setFilterResult] = useState('all');
+  // State management for table functionality
+  const [sortField, setSortField] = useState('timestamp');  // Current sort field
+  const [sortOrder, setSortOrder] = useState('desc');  // Sort order (asc/desc)
+  const [filterResult, setFilterResult] = useState('all');  // Result filter
 
+  // Sort scans based on current sort settings
   const sortedScans = [...scans].sort((a, b) => {
     let aValue = a[sortField];
     let bValue = b[sortField];
     
+    // Handle timestamp sorting with proper date conversion
     if (sortField === 'timestamp') {
       aValue = new Date(aValue);
       bValue = new Date(bValue);
     }
     
+    // Apply sort order
     if (sortOrder === 'asc') {
       return aValue > bValue ? 1 : -1;
     } else {
@@ -23,15 +29,19 @@ function ScanLogTable({ scans = [] }) {
     }
   });
 
+  // Filter scans based on result type
   const filteredScans = sortedScans.filter(scan => {
     if (filterResult === 'all') return true;
     return scan.result === filterResult;
   });
 
+  // Handle column sorting
   const handleSort = (field) => {
     if (sortField === field) {
+      // Toggle sort order if clicking the same field
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
+      // Set new sort field with default descending order
       setSortField(field);
       setSortOrder('desc');
     }
@@ -39,6 +49,7 @@ function ScanLogTable({ scans = [] }) {
 
   return (
     <div className="table-container">
+      {/* Table Controls Section */}
       <div className="table-controls">
         <div className="filter-controls">
           <label>Filter Results:</label>
@@ -57,10 +68,12 @@ function ScanLogTable({ scans = [] }) {
         </div>
       </div>
 
+      {/* Table Wrapper */}
       <div className="table-wrapper">
         <table className="scan-table">
           <thead>
             <tr>
+              {/* URL Column - Sortable */}
               <th 
                 className="sortable" 
                 onClick={() => handleSort('url')}
@@ -68,6 +81,7 @@ function ScanLogTable({ scans = [] }) {
                 🔗 URL
                 {sortField === 'url' && (sortOrder === 'asc' ? ' ↑' : ' ↓')}
               </th>
+              {/* Result Column - Sortable */}
               <th 
                 className="sortable" 
                 onClick={() => handleSort('result')}
@@ -75,6 +89,7 @@ function ScanLogTable({ scans = [] }) {
                 🎯 Result
                 {sortField === 'result' && (sortOrder === 'asc' ? ' ↑' : ' ↓')}
               </th>
+              {/* Timestamp Column - Sortable */}
               <th 
                 className="sortable" 
                 onClick={() => handleSort('timestamp')}
@@ -82,10 +97,12 @@ function ScanLogTable({ scans = [] }) {
                 ⏰ Time
                 {sortField === 'timestamp' && (sortOrder === 'asc' ? ' ↑' : ' ↓')}
               </th>
+              {/* Actions Column - Non-sortable */}
               <th>🔍 Actions</th>
             </tr>
           </thead>
           <tbody>
+            {/* Handle empty data state */}
             {filteredScans.length === 0 ? (
               <tr>
                 <td colSpan="4" className="no-data">
@@ -93,8 +110,10 @@ function ScanLogTable({ scans = [] }) {
                 </td>
               </tr>
             ) : (
+              /* Render scan results */
               filteredScans.map(scan => (
                 <tr key={scan.id} className="scan-row">
+                  {/* URL Cell with clickable link */}
                   <td className="url-cell">
                     <a 
                       href={scan.url} 
@@ -105,6 +124,7 @@ function ScanLogTable({ scans = [] }) {
                       {scan.url}
                     </a>
                   </td>
+                  {/* Result Cell with status badge */}
                   <td>
                     <span 
                       className={`result-badge ${scan.result.toLowerCase()}`}
@@ -112,6 +132,7 @@ function ScanLogTable({ scans = [] }) {
                       {scan.result === 'Phishing' ? '⚠️ Phishing' : '✅ Legitimate'}
                     </span>
                   </td>
+                  {/* Timestamp Cell with formatted date */}
                   <td className="timestamp-cell">
                     {new Date(scan.timestamp).toLocaleString('en-US', {
                       year: 'numeric',
@@ -121,6 +142,7 @@ function ScanLogTable({ scans = [] }) {
                       minute: '2-digit'
                     })}
                   </td>
+                  {/* Actions Cell with open URL button */}
                   <td>
                     <button 
                       className="action-btn"

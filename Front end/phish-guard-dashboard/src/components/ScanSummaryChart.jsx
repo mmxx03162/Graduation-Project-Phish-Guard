@@ -1,8 +1,11 @@
 // src/components/ScanSummaryChart.jsx
+// React component for displaying scan statistics in a visual chart format
+// This component provides both numerical statistics and a pie chart visualization
 
 import { useState, useEffect } from 'react';
 
 function ScanSummaryChart({ scans = [] }) {
+  // State for storing calculated statistics
   const [stats, setStats] = useState({
     total: 0,
     phishing: 0,
@@ -11,12 +14,15 @@ function ScanSummaryChart({ scans = [] }) {
     legitimatePercentage: 0
   });
 
+  // Effect hook to calculate statistics when scans data changes
   useEffect(() => {
     if (scans && scans.length > 0) {
+      // Count different types of scan results
       const phishingCount = scans.filter(scan => scan.result === 'Phishing').length;
       const legitimateCount = scans.filter(scan => scan.result === 'Legitimate').length;
       const total = scans.length;
       
+      // Update statistics state
       setStats({
         total,
         phishing: phishingCount,
@@ -27,11 +33,13 @@ function ScanSummaryChart({ scans = [] }) {
     }
   }, [scans]);
 
+  // Create SVG pie chart for visual representation
   const createPieChart = () => {
-    const radius = 80;
-    const centerX = 100;
-    const centerY = 100;
+    const radius = 80;  // Chart radius
+    const centerX = 100;  // Center X coordinate
+    const centerY = 100;  // Center Y coordinate
     
+    // Handle empty data case
     if (stats.total === 0) {
       return (
         <circle
@@ -45,12 +53,14 @@ function ScanSummaryChart({ scans = [] }) {
       );
     }
 
+    // Calculate chart segments
     const circumference = 2 * Math.PI * radius;
     const phishingLength = (stats.phishing / stats.total) * circumference;
     const legitimateLength = (stats.legitimate / stats.total) * circumference;
 
     return (
       <g>
+        {/* Background circle */}
         <circle
           cx={centerX}
           cy={centerY}
@@ -59,6 +69,7 @@ function ScanSummaryChart({ scans = [] }) {
           stroke="#e2e8f0"
           strokeWidth="20"
         />
+        {/* Phishing segment */}
         <circle
           cx={centerX}
           cy={centerY}
@@ -70,6 +81,7 @@ function ScanSummaryChart({ scans = [] }) {
           strokeDashoffset="0"
           transform={`rotate(-90 ${centerX} ${centerY})`}
         />
+        {/* Legitimate segment */}
         <circle
           cx={centerX}
           cy={centerY}
@@ -87,18 +99,22 @@ function ScanSummaryChart({ scans = [] }) {
 
   return (
     <div className="chart-container">
+      {/* Chart Header with Statistics */}
       <div className="chart-header">
         <h2>📊 Scan Statistics</h2>
         <div className="stats-grid">
+          {/* Total Scans Card */}
           <div className="stat-card total">
             <div className="stat-number">{stats.total}</div>
             <div className="stat-label">Total Scans</div>
           </div>
+          {/* Phishing Sites Card */}
           <div className="stat-card phishing">
             <div className="stat-number">{stats.phishing}</div>
             <div className="stat-label">Phishing Sites</div>
             <div className="stat-percentage">{stats.phishingPercentage}%</div>
           </div>
+          {/* Legitimate Sites Card */}
           <div className="stat-card safe">
             <div className="stat-number">{stats.legitimate}</div>
             <div className="stat-label">Legitimate Sites</div>
@@ -107,10 +123,12 @@ function ScanSummaryChart({ scans = [] }) {
         </div>
       </div>
       
+      {/* Chart Visualization */}
       <div className="chart-wrapper">
         <svg width="200" height="200" viewBox="0 0 200 200">
           {createPieChart()}
         </svg>
+        {/* Chart Legend */}
         <div className="chart-legend">
           <div className="legend-item">
             <div className="legend-color phishing"></div>
