@@ -1,6 +1,30 @@
-# api/views.py - Enhanced version with comprehensive English comments
-# API views for the Phish-Guard phishing detection system
-# This module handles HTTP requests and responses for URL scanning and data retrieval
+# api/views.py
+# API Views for Phish-Guard Phishing Detection System
+# Handles HTTP requests and responses for URL scanning
+
+"""
+═══════════════════════════════════════════════════════════════════════════════
+API ENDPOINTS OVERVIEW
+═══════════════════════════════════════════════════════════════════════════════
+
+POST /api/scan/
+    - Main endpoint for URL scanning
+    - Returns detailed analysis with verdict, reason, model votes, HTML analysis
+    
+GET /api/scan-logs/
+    - Retrieve scan history with pagination, filtering, and search
+    
+GET /api/models/status/
+    - Check status of loaded ML models
+    
+GET /api/health/
+    - System health check
+    
+GET/POST /api/test-connection/
+    - Test frontend-backend connectivity and CORS
+
+═══════════════════════════════════════════════════════════════════════════════
+"""
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -8,15 +32,14 @@ from rest_framework import status, generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from .models import ScanResult
 from .serializers import ScanResultSerializer
-from .predictor import make_prediction, get_models_status
+from .predictor import make_final_prediction, get_models_status
 import logging
 import time
 
-# Optional import for django_filters
+# Optional django_filters import
 try:
     from django_filters.rest_framework import DjangoFilterBackend
     DJANGO_FILTERS_AVAILABLE = True
@@ -24,21 +47,23 @@ except ImportError:
     DJANGO_FILTERS_AVAILABLE = False
     DjangoFilterBackend = None
 
-# Configure logging for the application
+# Configure logging
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CORS HELPER
+# ═══════════════════════════════════════════════════════════════════════════
 
 def add_cors_headers(response):
     """
-    Add CORS (Cross-Origin Resource Sharing) headers to the response.
-    
-    This function enables cross-origin requests from web browsers,
-    allowing the frontend to communicate with the backend API.
+    Add Cross-Origin Resource Sharing (CORS) headers to responses.
+    Allows frontend applications to communicate with the backend API.
     
     Args:
-        response: The HTTP response object to modify
+        response: HTTP response object
         
     Returns:
-        Response: The response with CORS headers added
+        Response: Modified response with CORS headers
     """
     response['Access-Control-Allow-Origin'] = '*'
     response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -46,86 +71,154 @@ def add_cors_headers(response):
     response['Access-Control-Allow-Credentials'] = 'true'
     return response
 
+# ═══════════════════════════════════════════════════════════════════════════
+# MAIN SCANNING ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
+
 @csrf_exempt
 @api_view(['POST'])
 def scan_url_view(request):
     """
-    API endpoint for scanning URLs and determining if they are phishing or legitimate.
+    Main URL scanning endpoint.
     
-    This view receives a URL in the request body, processes it through the
-    machine learning models, and returns the classification result along with
-    metadata about the scan.
+    Performs 3-level analysis:
+    1. Whitelist check
+    2. AI model predictions (6 models)
+    3. HTML content analysis (only if models flag as phishing)
+    
+    Request Body:
+        {
+            "url": "https://example.com"
+        }
+    
+    Response:
+        {
+            "id": 123,
+            "url": "https://example.com",
+            "result": "Phishing" or "Legitimate",
+            "reason": "Detailed explanation",
+            "model_votes": {
+                "total_votes": 6,
+                "phishing_votes": 4,
+                "legitimate_votes": 2,
+                "models_verdict": "Phishing",
+                "detailed_votes": [...]
+            },
+            "html_analysis": {
+                "suspicious": true,
+                "evidence": [...],
+                "score": 80
+            },
+            "timestamp": "2024-01-01T12:00:00Z",
+            "processing_time": 1.234,
+            "status": "success"
+        }
     
     Args:
-        request: HTTP request object containing the URL to scan
+        request: HTTP request with URL in body
         
     Returns:
-        Response: JSON response with scan results and metadata
+        Response: JSON response with analysis results
     """
     start_time = time.time()
     
     try:
-        # Validate the incoming request data
+        # ───────────────────────────────────────────────────────────────────
+        # Validate Request Data
+        # ───────────────────────────────────────────────────────────────────
         serializer = ScanResultSerializer(data=request.data)
         
-        if serializer.is_valid():
-            # Extract the URL from the validated data
-            url_to_check = serializer.validated_data['url']
-            logger.info(f"Analyzing URL: {url_to_check}")
-            
-            # Make prediction using the machine learning models
-            prediction_result = make_prediction(url_to_check)
-            
-            # Calculate processing time
-            processing_time = time.time() - start_time
-            
-            # Save the result to the database
-            scan_result = serializer.save(result=prediction_result)
-            
-            # Prepare the response data
-            response_data = {
-                'id': scan_result.id,
-                'url': scan_result.url,
-                'result': scan_result.result,
-                'timestamp': scan_result.timestamp,
-                'processing_time': round(processing_time, 3),
-                'status': 'success'
-            }
-            
-            logger.info(f"Prediction completed: {prediction_result} (Time: {processing_time:.3f}s)")
-            
-            return Response(response_data, status=status.HTTP_201_CREATED)
-        
-        else:
+        if not serializer.is_valid():
             logger.warning(f"Invalid request data: {serializer.errors}")
             return Response({
                 'status': 'error',
                 'message': 'Invalid request data',
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # ───────────────────────────────────────────────────────────────────
+        # Extract URL and Perform Analysis
+        # ───────────────────────────────────────────────────────────────────
+        url_to_check = serializer.validated_data['url']
+        logger.info(f"Starting analysis for URL: {url_to_check}")
+        
+        # Perform 3-level prediction
+        prediction_data = make_final_prediction(url_to_check)
+        
+        # Extract results
+        final_verdict = prediction_data.get("verdict", "Legitimate")
+        prediction_reason = prediction_data.get("reason", "Analysis completed")
+        model_votes = prediction_data.get("model_votes")
+        html_analysis = prediction_data.get("html_analysis")
+        
+        # ───────────────────────────────────────────────────────────────────
+        # Save to Database
+        # ───────────────────────────────────────────────────────────────────
+        scan_result = serializer.save(result=final_verdict)
+        
+        # Calculate processing time
+        processing_time = time.time() - start_time
+        
+        # ───────────────────────────────────────────────────────────────────
+        # Prepare Response
+        # ───────────────────────────────────────────────────────────────────
+        response_data = {
+            'id': scan_result.id,
+            'url': scan_result.url,
+            'result': scan_result.result,
+            'reason': prediction_reason,
+            'model_votes': model_votes,
+            'html_analysis': html_analysis,
+            'timestamp': scan_result.timestamp,
+            'processing_time': round(processing_time, 3),
+            'status': 'success'
+        }
+        
+        logger.info(
+            f"Analysis completed: {final_verdict} "
+            f"(Reason: {prediction_reason}, Time: {processing_time:.3f}s)"
+        )
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     except Exception as e:
-        logger.error(f"Error processing request: {str(e)}")
+        logger.error(f"Error processing scan request: {str(e)}", exc_info=True)
         return Response({
             'status': 'error',
-            'message': 'Internal server error',
+            'message': 'Internal server error during URL analysis',
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MODELS STATUS ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
 
 @csrf_exempt
 @api_view(['GET'])
 def models_status_view(request):
     """
-    API endpoint for displaying the status of machine learning models.
+    Check the loading status of all ML models.
     
-    This view provides information about which models are loaded and ready
-    for making predictions, helping with system monitoring and debugging.
+    Returns information about which models are loaded and ready.
+    Useful for system monitoring and debugging.
+    
+    Response:
+        {
+            "status": "success",
+            "models_loaded": "6/7",
+            "models_status": {
+                "Random Forest": true,
+                "LightGBM": true,
+                ...
+            },
+            "all_models_ready": true
+        }
     
     Args:
-        request: HTTP request object
+        request: HTTP request
         
     Returns:
-        Response: JSON response with model status information
+        Response: JSON with model status information
     """
     try:
         models_status = get_models_status()
@@ -136,61 +229,84 @@ def models_status_view(request):
             'status': 'success',
             'models_loaded': f"{loaded_count}/{total_count}",
             'models_status': models_status,
-            'all_models_ready': loaded_count == total_count
+            'all_models_ready': loaded_count == total_count,
+            'message': (
+                'All models operational' if loaded_count == total_count
+                else f'Warning: Only {loaded_count}/{total_count} models loaded'
+            )
         }, status=status.HTTP_200_OK)
     
     except Exception as e:
         logger.error(f"Error getting models status: {str(e)}")
         return Response({
             'status': 'error',
-            'message': 'Unable to get models status',
+            'message': 'Unable to retrieve model status',
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HEALTH CHECK ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
 
 @csrf_exempt
 @api_view(['GET'])
 def health_check_view(request):
     """
-    API endpoint for system health verification.
+    System health verification endpoint.
     
-    This endpoint provides basic information about the system status,
-    available API endpoints, and service configuration.
+    Provides information about service status and available endpoints.
+    
+    Response:
+        {
+            "status": "healthy",
+            "service": "Phishing Guard Backend",
+            "version": "2.0.0",
+            "api_endpoints": {...}
+        }
     
     Args:
-        request: HTTP request object
+        request: HTTP request
         
     Returns:
-        Response: JSON response with system health information
+        Response: JSON with system health information
     """
     return Response({
         'status': 'healthy',
         'service': 'Phishing Guard Backend',
-        'version': '1.0.0',
+        'version': '2.0.0',
         'cors_enabled': True,
+        'features': [
+            'Multi-level URL analysis',
+            'AI model ensemble (6 models)',
+            'HTML content inspection',
+            'Whitelist protection'
+        ],
         'api_endpoints': {
             'scan': '/api/scan/',
-            'logs': '/api/logs/',
             'scan_logs': '/api/scan-logs/',
             'models_status': '/api/models/status/',
-            'health': '/api/health/'
+            'health': '/api/health/',
+            'test_connection': '/api/test-connection/'
         }
     }, status=status.HTTP_200_OK)
 
+# ═══════════════════════════════════════════════════════════════════════════
+# CONNECTION TEST ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
 
 @csrf_exempt
 @api_view(['GET', 'POST', 'OPTIONS'])
 def connection_test_view(request):
     """
-    API endpoint for testing connection from the frontend.
+    Test frontend-backend connectivity and CORS configuration.
     
-    This endpoint helps verify that the backend is accessible and
-    CORS is properly configured for frontend-backend communication.
+    Useful for debugging connection issues between frontend and backend.
     
     Args:
-        request: HTTP request object
+        request: HTTP request
         
     Returns:
-        Response: JSON response with connection status
+        Response: JSON with connection details
     """
     if request.method == 'OPTIONS':
         return Response({'status': 'ok'}, status=status.HTTP_200_OK)
@@ -200,72 +316,127 @@ def connection_test_view(request):
         'message': 'Backend connection successful',
         'timestamp': time.time(),
         'method': request.method,
-        'headers': dict(request.headers),
-        'cors_working': True
+        'cors_working': True,
+        'server_info': {
+            'service': 'Phishing Guard',
+            'version': '2.0.0'
+        }
     }, status=status.HTTP_200_OK)
 
+# ═══════════════════════════════════════════════════════════════════════════
+# PAGINATION CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════
 
-# --- Pagination Class ---
 class ScanResultPagination(PageNumberPagination):
     """
-    Custom pagination class for controlling result pagination.
+    Custom pagination for scan results.
     
-    This class defines how scan results are divided into pages,
-    allowing for efficient handling of large datasets.
+    Divides results into pages for efficient data retrieval.
     """
-    page_size = 20  # Number of results per page
-    page_size_query_param = 'page_size'  # Allow changing page size via URL parameter
-    max_page_size = 100  # Maximum number of results per page
+    page_size = 20  # Default items per page
+    page_size_query_param = 'page_size'  # Allow custom page size via URL
+    max_page_size = 100  # Maximum allowed page size
 
+# ═══════════════════════════════════════════════════════════════════════════
+# SCAN LOGS ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════
 
-# --- ScanLogView Class ---
 class ScanLogView(generics.ListAPIView):
     """
-    View for reading all scan records from the database and returning them.
+    Retrieve scan history with advanced filtering.
     
-    This view uses Django REST Framework's ListAPIView which handles
-    most of the heavy lifting for us, including serialization, pagination,
-    filtering, and ordering.
+    Features:
+    - Pagination (20 items per page)
+    - Search by URL or result
+    - Filter by result type (Phishing/Legitimate)
+    - Order by timestamp, result, or URL
+    - Date range filtering
+    
+    Query Parameters:
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - search: Search in URL and result fields
+        - ordering: Sort by field (e.g., -timestamp, url)
+        - result: Filter by result (Phishing or Legitimate)
+        - date_from: Filter scans from this date
+        - date_to: Filter scans until this date
+    
+    Example Requests:
+        GET /api/scan-logs/
+        GET /api/scan-logs/?page=2&page_size=50
+        GET /api/scan-logs/?search=google
+        GET /api/scan-logs/?result=Phishing
+        GET /api/scan-logs/?ordering=-timestamp
+        GET /api/scan-logs/?date_from=2024-01-01&date_to=2024-01-31
     """
-    queryset = ScanResult.objects.all().order_by('-timestamp')  # Get all records, ordered from newest to oldest
-    serializer_class = ScanResultSerializer  # Use this serializer to convert to JSON
-    pagination_class = ScanResultPagination  # Use custom pagination
+    queryset = ScanResult.objects.all().order_by('-timestamp')
+    serializer_class = ScanResultSerializer
+    pagination_class = ScanResultPagination
     
-    # Add search and ordering filters (with django_filters availability check)
+    # Configure filters
     filter_backends = [SearchFilter, OrderingFilter]
     if DJANGO_FILTERS_AVAILABLE:
         filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     
-    # Define fields that can be searched
+    # Searchable fields
     search_fields = ['url', 'result']
     
-    # Define fields that results can be ordered by
+    # Orderable fields
     ordering_fields = ['timestamp', 'result', 'url']
-    ordering = ['-timestamp']  # Default ordering
+    ordering = ['-timestamp']  # Default: newest first
     
-    # Define fields that can be filtered (only if django_filters is available)
+    # Filterable fields (if django_filters available)
     if DJANGO_FILTERS_AVAILABLE:
         filterset_fields = ['result']
     
     def get_queryset(self):
         """
-        Optimize the query for better performance.
-        
-        This method allows for additional filtering based on query parameters,
-        such as date ranges, to provide more targeted results.
+        Get queryset with optional date filtering.
         
         Returns:
-            QuerySet: Filtered and optimized queryset
+            QuerySet: Filtered scan results
         """
         queryset = super().get_queryset()
         
-        # Add optional date filtering
-        date_from = self.request.query_params.get('date_from', None)
-        date_to = self.request.query_params.get('date_to', None)
+        # Date range filtering
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
         
         if date_from:
-            queryset = queryset.filter(timestamp__date__gte=date_from)
+            try:
+                queryset = queryset.filter(timestamp__date__gte=date_from)
+            except Exception as e:
+                logger.warning(f"Invalid date_from parameter: {e}")
+        
         if date_to:
-            queryset = queryset.filter(timestamp__date__lte=date_to)
-            
+            try:
+                queryset = queryset.filter(timestamp__date__lte=date_to)
+            except Exception as e:
+                logger.warning(f"Invalid date_to parameter: {e}")
+        
         return queryset
+    
+    def list(self, request, *args, **kwargs):
+        """
+        Override list method to add metadata to response.
+        
+        Returns:
+            Response: Paginated results with metadata
+        """
+        response = super().list(request, *args, **kwargs)
+        
+        # Add metadata
+        response.data['metadata'] = {
+            'total_scans': self.get_queryset().count(),
+            'phishing_count': self.get_queryset().filter(result='Phishing').count(),
+            'legitimate_count': self.get_queryset().filter(result='Legitimate').count(),
+        }
+        
+        return response
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BACKWARD COMPATIBILITY
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Keep old endpoint names for backward compatibility
+logs_view = ScanLogView.as_view()  # For /api/logs/ endpoint
