@@ -7,15 +7,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 1. Find the HTML elements we'll be working with
     const checkButton = document.getElementById('checkButton');
-    const resultDiv = document.getElementById('result');
+    const resultContainer = document.getElementById('result-container');
+    const resultTitle = document.getElementById('result-title');
+    const resultReason = document.getElementById('result-reason');
 
     // 2. Add event listener for the check button click
     // This means: "when the button is clicked, execute this function"
     checkButton.addEventListener('click', function() {
         
-        // Display "Checking..." message immediately to inform the user
-        resultDiv.textContent = 'Checking...';
-        resultDiv.style.color = 'orange';
+        // Hide previous results and show checking message
+        resultContainer.style.display = 'block';
+        resultTitle.textContent = 'Checking...';
+        resultTitle.style.color = 'orange';
+        resultReason.textContent = 'Please wait while we analyze the site...';
 
         // 3. Request the current page URL from Chrome
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -38,26 +42,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json(); // Convert response to JSON
             })
             .then(data => {
-                // 5. Display the final result returned from Django
-                displayResult(data.result);
+                // 5. Display the final result and reason returned from Django
+                displayResult(data.result, data.reason);
             })
             .catch(error => {
                 // 6. Handle any errors (e.g., Django server not running)
                 console.error('Error:', error);
-                displayResult('Error: Could not connect to server.');
+                displayResult('Error', 'Could not connect to server. Please make sure the backend is running.');
             });
         });
     });
 
     // Helper function to change the color and appearance of the result
-    function displayResult(resultText) {
-        resultDiv.textContent = resultText;
+    function displayResult(resultText, reasonText) {
+        // Show the result container
+        resultContainer.style.display = 'block';
+        
+        // Display the result title
+        resultTitle.textContent = resultText;
+        
+        // Set colors based on result
         if (resultText.toLowerCase() === 'phishing') {
-            resultDiv.style.color = 'red';
+            resultTitle.style.color = 'red';
+            resultContainer.style.backgroundColor = '#ffe6e6';
+            resultContainer.style.border = '2px solid #ff4444';
         } else if (resultText.toLowerCase() === 'legitimate') {
-            resultDiv.style.color = 'green';
+            resultTitle.style.color = 'green';
+            resultContainer.style.backgroundColor = '#e6ffe6';
+            resultContainer.style.border = '2px solid #44ff44';
         } else {
-            resultDiv.style.color = 'black'; // For other messages like errors
+            resultTitle.style.color = 'black';
+            resultContainer.style.backgroundColor = '#f0f0f0';
+            resultContainer.style.border = '2px solid #888';
         }
+        
+        // Display the reason
+        resultReason.textContent = reasonText || 'No additional information available.';
     }
 });

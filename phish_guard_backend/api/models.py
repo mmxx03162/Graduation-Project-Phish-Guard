@@ -15,12 +15,15 @@ class ScanResult(models.Model):
     # الحقل اللي هيسجل تاريخ ووقت إنشاء الصف ده في الجدول
     # auto_now_add=True معناها إن ديجانجو هيحط الوقت الحالي تلقائيًا أول ما الصف يتสร้าง بس
     # ومش هيتغير بعد كده
+    reason = models.TextField(null=True, blank=True) 
     timestamp = models.DateTimeField(auto_now_add=True)
 
     # دي دالة خاصة في بايثون عشان تحدد شكل الـ object ده لما نيجي نطبعه
     # هتفيدنا جدًا في لوحة التحكم بعدين عشان نشوف اللينك بدل ما نشوف "(Object (1"
     def __str__(self):
         return self.url
+    
+    
     
     
     

@@ -4,47 +4,49 @@
     <meta charset="UTF-8">
     <title>Phish-Guard</title>
     <style>
-        /* Basic styling for the extension popup */
         body {
-            font-family: Arial, sans-serif;
-            width: 250px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 320px;
             text-align: center;
-            padding: 10px;
-            margin: 0;
+            padding: 15px;
+            background-color: #f9f9f9;
         }
-        /* Button styling with hover effects */
+        h3 { margin: 0 0 15px 0; color: #333; }
         button {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
         }
-        button:hover {
-            background-color: #45a049;
+        button:hover { background-color: #0056b3; }
+        
+        /* الصندوق اللي هيشيل النتيجة والسبب */
+        #result-container {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none; /* مخفي في البداية */
         }
-        /* Result display styling */
-        #result {
-            margin-top: 15px;
-            font-size: 18px;
-            font-weight: bold;
-        }
+        #result-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        #result-reason { font-size: 13px; color: #555; line-height: 1.4; }
     </style>
 </head>
 <body>
-    <!-- Extension header -->
-    <h3>🛡️ Phish-Guard</h3>
-    
-    <!-- Main action button for scanning current page -->
+    <h3>🛡️ Phish-Guard AI</h3>
     <button id="checkButton">Check Current Site</button>
     
-    <!-- Result display area -->
-    <div id="result"></div>
-    
-    <!-- Include the JavaScript functionality -->
+    <div id="result-container">
+        <div id="result-title"></div>
+        <div id="result-reason"></div>
+    </div>
+
     <script src="popup.js"></script>
 </body>
 </html>
+
+

@@ -154,7 +154,7 @@ def scan_url_view(request):
         # ───────────────────────────────────────────────────────────────────
         # Save to Database
         # ───────────────────────────────────────────────────────────────────
-        scan_result = serializer.save(result=final_verdict)
+        scan_result = serializer.save(result=final_verdict, reason=prediction_reason)
         
         # Calculate processing time
         processing_time = time.time() - start_time

@@ -22,4 +22,6 @@ class ScanResultSerializer(serializers.ModelSerializer):
         should be included in the serialized output.
         """
         model = ScanResult
-        fields = ['id', 'url', 'result', 'timestamp']
+        fields = ['id', 'url', 'result', 'reason', 'timestamp']
+        read_only_fields = ['result', 'reason', 'timestamp']
+        

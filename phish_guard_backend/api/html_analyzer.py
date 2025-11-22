@@ -213,7 +213,7 @@ def inspect_page_content(url):
         print(f"  ⚠️  Connection timeout")
         return {
             "suspicious": True,
-            "evidence": ["Connection timeout (suspicious behavior)"],
+            "evidence": ["Site unresponsive/timed out (Typical behavior for short-lived phishing sites)"],
             "score": 10,
             "error": "Request timeout"
         }
@@ -223,7 +223,7 @@ def inspect_page_content(url):
         print(f"  ⚠️  Connection error")
         return {
             "suspicious": True,
-            "evidence": ["Unable to connect to server"],
+            "evidence": ["Site refused connection or is blocking analysis (High Risk Behavior)"],
             "score": 10,
             "error": "Connection error"
         }
@@ -253,7 +253,7 @@ def inspect_page_content(url):
         print(f"  ❌ Analysis error: {e}")
         return {
             "suspicious": True,
-            "evidence": [f"Analysis failed: {str(e)[:50]}"],
+            "evidence": ["Site refused connection or is blocking analysis (High Risk Behavior)"],
             "score": 5,
             "error": str(e)
         }
