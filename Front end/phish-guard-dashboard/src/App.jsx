@@ -14,6 +14,38 @@ function App() {
   const [scanUrl, setScanUrl] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  
+  // Detailed View state
+  const [selectedScan, setSelectedScan] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Fetch detailed scan info
+  const fetchScanDetails = async (scan) => {
+    setDetailLoading(true);
+    setSelectedScan(scan);
+    setShowDetailModal(true);
+    
+    // Try to fetch fresh scan data if available
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/scan/?url=${encodeURIComponent(scan.url)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+      
+      if (response.ok) {
+        const freshData = await response.json();
+        setSelectedScan({...scan, ...freshData});
+      }
+    } catch (error) {
+      console.log('Using existing scan data:', error.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   // Fetch logs from Django Backend
   const fetchScans = async () => {
@@ -466,7 +498,7 @@ function App() {
                     return (
                       <div key={i} style={{flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center'}}>
                         <div style={{width: '100%', height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: '2px'}}>
-                          <div style={{
+                      <div style={{
                             height: `${legitHeight}%`,
                             background: 'linear-gradient(180deg, #51cf66 0%, #37b24d 100%)',
                             borderRadius: '6px 6px 0 0',
@@ -478,10 +510,10 @@ function App() {
                             borderRadius: '6px 6px 0 0',
                             minHeight: weeklyData[i].phishing > 0 ? '8px' : '0'
                           }} />
-                        </div>
+                    </div>
                         <span style={{fontSize: '12px', color: '#888', fontWeight: '600', marginTop: '8px'}}>{day}</span>
                         <span style={{fontSize: '11px', color: '#aaa', fontWeight: '500'}}>{total}</span>
-                    </div>
+                </div>
                     );
                   })}
                 </div>
@@ -507,10 +539,10 @@ function App() {
                   </thead>
                   <tbody>
                     {scans.slice(0, 5).map((scan, i) => (
-                      <tr key={i} style={{borderBottom: '1px solid #f0f0f0'}}>
+                      <tr key={i} style={{borderBottom: '1px solid #f0f0f0', cursor: 'pointer'}} onClick={() => fetchScanDetails(scan)}>
                         <td style={{padding: '16px', fontSize: '14px', color: '#212529', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
-                          <Globe size={16} color="#888" style={{display: 'inline-block', marginRight: '8px', verticalAlign: 'middle'}} />
-                          {scan.url || 'N/A'}
+                          <Globe size={16} color="#667eea" style={{display: 'inline-block', marginRight: '8px', verticalAlign: 'middle'}} />
+                          <span style={{color: '#667eea', textDecoration: 'underline'}}>{scan.url || 'N/A'}</span>
                         </td>
                         <td style={{padding: '16px', textAlign: 'center'}}>
                           <span style={{
@@ -659,11 +691,93 @@ function App() {
                       <BarChart3 size={24} color="#667eea" />
                       Model Votes
                     </h3>
+                    
+                    {/* Pie Chart Section */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      marginBottom: '24px'
+                    }}>
+                      {/* Pie Chart */}
+                      <div style={{
+                        background: '#f8f9fa',
+                        borderRadius: '16px',
+                        padding: '32px',
+                        textAlign: 'center',
+                        maxWidth: '500px',
+                        width: '100%'
+                      }}>
+                        <h4 style={{margin: '0 0 24px', fontSize: '18px', fontWeight: '700', color: '#1a1d2e'}}>
+                          Models Distribution
+                        </h4>
+                        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px'}}>
+                          <svg width="280" height="280" viewBox="0 0 280 280">
+                            {/* Background circle */}
+                            <circle cx="140" cy="140" r="110" fill="none" stroke="#f0f0f0" strokeWidth="50" />
+                            
+                            {/* Phishing votes circle */}
+                            {(scanResult.model_votes.phishing_votes || 0) > 0 && (
+                              <circle
+                                cx="140"
+                                cy="140"
+                                r="110"
+                                fill="none"
+                                stroke="#ff6b6b"
+                                strokeWidth="50"
+                                strokeDasharray={`${((scanResult.model_votes.phishing_votes || 0) / (scanResult.model_votes.total_votes || 1)) * 690} 690`}
+                                transform="rotate(-90 140 140)"
+                              />
+                            )}
+                            
+                            {/* Safe votes circle */}
+                            {(scanResult.model_votes.legitimate_votes || 0) > 0 && (
+                              <circle
+                                cx="140"
+                                cy="140"
+                                r="110"
+                                fill="none"
+                                stroke="#51cf66"
+                                strokeWidth="50"
+                                strokeDasharray={`${((scanResult.model_votes.legitimate_votes || 0) / (scanResult.model_votes.total_votes || 1)) * 690} 690`}
+                                strokeDashoffset={`${-((scanResult.model_votes.phishing_votes || 0) / (scanResult.model_votes.total_votes || 1)) * 690}`}
+                                transform="rotate(-90 140 140)"
+                              />
+                            )}
+                            
+                            {/* Center text */}
+                            <text x="140" y="130" textAnchor="middle" fontSize="16" fill="#888" fontWeight="600">
+                              {scanResult.model_votes.total_votes || 0} Models
+                            </text>
+                            <text x="140" y="155" textAnchor="middle" fontSize="32" fill="#1a1d2e" fontWeight="700">
+                              {scanResult.model_votes.phishing_votes >= scanResult.model_votes.legitimate_votes ? 
+                                Math.round((scanResult.model_votes.phishing_votes / (scanResult.model_votes.total_votes || 1)) * 100) :
+                                Math.round((scanResult.model_votes.legitimate_votes / (scanResult.model_votes.total_votes || 1)) * 100)
+                              }%
+                            </text>
+                          </svg>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'center', gap: '32px'}}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <div style={{width: '16px', height: '16px', borderRadius: '4px', background: '#51cf66'}} />
+                            <span style={{fontSize: '14px', color: '#555', fontWeight: '600'}}>
+                              Safe: {Math.round((scanResult.model_votes.legitimate_votes / (scanResult.model_votes.total_votes || 1)) * 100)}%
+                            </span>
+                          </div>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <div style={{width: '16px', height: '16px', borderRadius: '4px', background: '#ff6b6b'}} />
+                            <span style={{fontSize: '14px', color: '#555', fontWeight: '600'}}>
+                              Phishing: {Math.round((scanResult.model_votes.phishing_votes / (scanResult.model_votes.total_votes || 1)) * 100)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary Cards */}
                     <div style={{
                       padding: '24px',
                       background: '#f8f9fa',
-                      borderRadius: '12px',
-                      marginBottom: '16px'
+                      borderRadius: '12px'
                     }}>
                       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px'}}>
                         <div style={{textAlign: 'center', padding: '16px', background: 'white', borderRadius: '8px'}}>
@@ -824,11 +938,11 @@ function App() {
                     </tr>
                   ) : (
                     filteredScans.map((scan, i) => (
-                    <tr key={i} style={{borderBottom: '1px solid #f0f0f0'}}>
+                    <tr key={i} style={{borderBottom: '1px solid #f0f0f0', cursor: 'pointer'}} onClick={() => fetchScanDetails(scan)}>
                         <td style={{padding: '16px', fontSize: '14px', color: '#212529', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                          <Globe size={16} color="#888" />
-                            <span>
+                          <Globe size={16} color="#667eea" />
+                            <span style={{color: '#667eea', textDecoration: 'underline'}}>
                           {scan.url || 'N/A'}
                             </span>
                         </div>
@@ -847,7 +961,7 @@ function App() {
                       </td>
                         <td style={{padding: '16px', fontSize: '13px', color: '#666', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                           {scan.reason || 'No reason provided'}
-                        </td>
+                      </td>
                       <td style={{padding: '16px', textAlign: 'center', fontSize: '13px', color: '#6c757d'}}>
                         {scan.timestamp ? new Date(scan.timestamp).toLocaleString() : 'N/A'}
                       </td>
@@ -1026,6 +1140,329 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Detailed Analysis Modal */}
+      {showDetailModal && selectedScan && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          overflowY: 'auto'
+        }} onClick={() => setShowDetailModal(false)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            maxWidth: '1200px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{
+              padding: '32px',
+              background: selectedScan.result === 'Phishing' ? 
+                'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)' : 
+                'linear-gradient(135deg, #51cf66 0%, #37b24d 100%)',
+              borderRadius: '24px 24px 0 0',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{flex: 1}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px'}}>
+                  {selectedScan.result === 'Phishing' ? (
+                    <AlertTriangle size={48} />
+                  ) : (
+                    <CheckCircle size={48} />
+                  )}
+                  <h2 style={{margin: 0, fontSize: '32px', fontWeight: '700'}}>
+                    {selectedScan.result || 'Unknown'}
+                  </h2>
+                </div>
+                <p style={{margin: 0, fontSize: '16px', opacity: 0.9}}>
+                  {selectedScan.reason || 'Analysis completed'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{padding: '32px'}}>
+              {detailLoading ? (
+                <div style={{textAlign: 'center', padding: '60px'}}>
+                  <RefreshCw size={48} style={{animation: 'spin 1s linear infinite'}} />
+                  <p style={{marginTop: '20px', color: '#666'}}>Loading details...</p>
+                </div>
+              ) : (
+                <>
+                  {/* URL Section */}
+                  <div style={{
+                    background: '#f8f9fa',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    marginBottom: '24px',
+                    border: '2px solid #e9ecef'
+                  }}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px'}}>
+                      <Globe size={24} color="#667eea" />
+                      <h3 style={{margin: 0, fontSize: '18px', fontWeight: '700', color: '#1a1d2e'}}>
+                        Analyzed URL
+                      </h3>
+                    </div>
+                    <div style={{
+                      padding: '16px',
+                      background: 'white',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      color: '#495057',
+                      wordBreak: 'break-all',
+                      fontFamily: 'monospace'
+                    }}>
+                      {selectedScan.url || 'N/A'}
+                    </div>
+                  </div>
+
+                  {/* Model Votes Section */}
+                  {selectedScan.model_votes && (
+                    <div style={{
+                      background: '#f8f9fa',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      marginBottom: '24px'
+                    }}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px'}}>
+                        <BarChart3 size={24} color="#667eea" />
+                        <h3 style={{margin: 0, fontSize: '18px', fontWeight: '700', color: '#1a1d2e'}}>
+                          AI Models Voting Results
+                        </h3>
+                      </div>
+
+                      {/* Pie Chart Section */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        marginBottom: '24px'
+                      }}>
+                        {/* Pie Chart */}
+                        <div style={{
+                          background: 'white',
+                          borderRadius: '16px',
+                          padding: '32px',
+                          textAlign: 'center',
+                          maxWidth: '500px',
+                          width: '100%'
+                        }}>
+                          <h4 style={{margin: '0 0 24px', fontSize: '18px', fontWeight: '700', color: '#1a1d2e'}}>
+                            Models Distribution
+                          </h4>
+                          <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px'}}>
+                            <svg width="280" height="280" viewBox="0 0 280 280">
+                              {/* Background circle */}
+                              <circle cx="140" cy="140" r="110" fill="none" stroke="#f0f0f0" strokeWidth="50" />
+                              
+                              {/* Phishing votes circle */}
+                              {(selectedScan.model_votes.phishing_votes || 0) > 0 && (
+                                <circle
+                                  cx="140"
+                                  cy="140"
+                                  r="110"
+                                  fill="none"
+                                  stroke="#ff6b6b"
+                                  strokeWidth="50"
+                                  strokeDasharray={`${((selectedScan.model_votes.phishing_votes || 0) / (selectedScan.model_votes.total_votes || 1)) * 690} 690`}
+                                  transform="rotate(-90 140 140)"
+                                />
+                              )}
+                              
+                              {/* Safe votes circle */}
+                              {(selectedScan.model_votes.legitimate_votes || 0) > 0 && (
+                                <circle
+                                  cx="140"
+                                  cy="140"
+                                  r="110"
+                                  fill="none"
+                                  stroke="#51cf66"
+                                  strokeWidth="50"
+                                  strokeDasharray={`${((selectedScan.model_votes.legitimate_votes || 0) / (selectedScan.model_votes.total_votes || 1)) * 690} 690`}
+                                  strokeDashoffset={`${-((selectedScan.model_votes.phishing_votes || 0) / (selectedScan.model_votes.total_votes || 1)) * 690}`}
+                                  transform="rotate(-90 140 140)"
+                                />
+                              )}
+                              
+                              {/* Center text */}
+                              <text x="140" y="130" textAnchor="middle" fontSize="16" fill="#888" fontWeight="600">
+                                {selectedScan.model_votes.total_votes || 0} Models
+                              </text>
+                              <text x="140" y="155" textAnchor="middle" fontSize="32" fill="#1a1d2e" fontWeight="700">
+                                {selectedScan.model_votes.phishing_votes >= selectedScan.model_votes.legitimate_votes ? 
+                                  Math.round((selectedScan.model_votes.phishing_votes / (selectedScan.model_votes.total_votes || 1)) * 100) :
+                                  Math.round((selectedScan.model_votes.legitimate_votes / (selectedScan.model_votes.total_votes || 1)) * 100)
+                                }%
+                              </text>
+                            </svg>
+                          </div>
+                          <div style={{display: 'flex', justifyContent: 'center', gap: '32px'}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                              <div style={{width: '16px', height: '16px', borderRadius: '4px', background: '#51cf66'}} />
+                              <span style={{fontSize: '14px', color: '#555', fontWeight: '600'}}>
+                                Safe: {Math.round((selectedScan.model_votes.legitimate_votes / (selectedScan.model_votes.total_votes || 1)) * 100)}%
+                              </span>
+                            </div>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                              <div style={{width: '16px', height: '16px', borderRadius: '4px', background: '#ff6b6b'}} />
+                              <span style={{fontSize: '14px', color: '#555', fontWeight: '600'}}>
+                                Phishing: {Math.round((selectedScan.model_votes.phishing_votes / (selectedScan.model_votes.total_votes || 1)) * 100)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Summary Cards */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '16px'
+                      }}>
+                        <div style={{
+                          background: 'white',
+                          borderRadius: '12px',
+                          padding: '20px',
+                          textAlign: 'center',
+                          border: '2px solid #00d4ff'
+                        }}>
+                          <div style={{fontSize: '36px', fontWeight: '700', color: '#00d4ff', marginBottom: '8px'}}>
+                            {selectedScan.model_votes.total_votes || 0}
+                          </div>
+                          <div style={{fontSize: '14px', color: '#666', fontWeight: '600'}}>Total Votes</div>
+                        </div>
+                        <div style={{
+                          background: 'white',
+                          borderRadius: '12px',
+                          padding: '20px',
+                          textAlign: 'center',
+                          border: '2px solid #ff4444'
+                        }}>
+                          <div style={{fontSize: '36px', fontWeight: '700', color: '#ff4444', marginBottom: '8px'}}>
+                            {selectedScan.model_votes.phishing_votes || 0}
+                          </div>
+                          <div style={{fontSize: '14px', color: '#666', fontWeight: '600'}}>Phishing Votes</div>
+                        </div>
+                        <div style={{
+                          background: 'white',
+                          borderRadius: '12px',
+                          padding: '20px',
+                          textAlign: 'center',
+                          border: '2px solid #00aa44'
+                        }}>
+                          <div style={{fontSize: '36px', fontWeight: '700', color: '#00aa44', marginBottom: '8px'}}>
+                            {selectedScan.model_votes.legitimate_votes || 0}
+                          </div>
+                          <div style={{fontSize: '14px', color: '#666', fontWeight: '600'}}>Safe Votes</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* HTML Analysis Section */}
+                  {selectedScan.html_analysis && (
+                    <div style={{
+                      background: '#f8f9fa',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      marginBottom: '24px'
+                    }}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px'}}>
+                        <Search size={24} color="#667eea" />
+                        <h3 style={{margin: 0, fontSize: '18px', fontWeight: '700', color: '#1a1d2e'}}>
+                          HTML Content Analysis
+                        </h3>
+                      </div>
+                      <div style={{
+                        background: 'white',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        marginBottom: '16px'
+                      }}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                          <span style={{fontSize: '16px', fontWeight: '600', color: '#1a1d2e'}}>Suspicion Score</span>
+                          <span style={{
+                            fontSize: '24px',
+                            fontWeight: '700',
+                            color: selectedScan.html_analysis.suspicious ? '#ff4444' : '#00aa44'
+                          }}>
+                            {selectedScan.html_analysis.score || 0}/100
+                          </span>
+                        </div>
+                        {selectedScan.html_analysis.evidence && selectedScan.html_analysis.evidence.length > 0 && (
+                          <div>
+                            <h4 style={{margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#495057'}}>
+                              Evidence Found:
+                            </h4>
+                            <ul style={{margin: 0, paddingLeft: '20px'}}>
+                              {selectedScan.html_analysis.evidence.map((evidence, idx) => (
+                                <li key={idx} style={{fontSize: '14px', color: '#666', marginBottom: '8px', lineHeight: '1.6'}}>
+                                  {evidence}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timestamp */}
+                  <div style={{
+                    background: '#f8f9fa',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <Clock size={20} color="#667eea" />
+                    <div>
+                      <div style={{fontSize: '13px', color: '#666', marginBottom: '4px'}}>Scan Timestamp</div>
+                      <div style={{fontSize: '15px', fontWeight: '600', color: '#1a1d2e'}}>
+                        {selectedScan.timestamp ? new Date(selectedScan.timestamp).toLocaleString() : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin {
