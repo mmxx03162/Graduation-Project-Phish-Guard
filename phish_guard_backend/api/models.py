@@ -26,7 +26,14 @@ class ScanResult(models.Model):
     
     
     
-    
+class BlacklistedURL(models.Model):
+    # unique=True مهمة جداً هنا عشان لو سحبنا نفس اللينك بكرة ميتكررش في الداتا بيز
+    url = models.URLField(max_length=2000, unique=True)
+    source = models.CharField(max_length=50, default="OpenPhish")
+    date_added = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.url
     
     
     

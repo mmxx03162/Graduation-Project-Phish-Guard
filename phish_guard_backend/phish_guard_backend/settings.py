@@ -228,3 +228,14 @@ SECURE_REFERRER_POLICY = None  # Allow referrer information
 # Cookie settings for session management
 SESSION_COOKIE_SAMESITE = 'Lax'  # Session cookie SameSite policy
 CSRF_COOKIE_SAMESITE = 'Lax'  # CSRF cookie SameSite policy
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenPhish blacklist auto-update (startup)
+# ─────────────────────────────────────────────────────────────────────────────
+# If True, when the Django server starts it will fetch OpenPhish and store the latest batch.
+# Note: in production servers with multiple workers, this can run once per worker/process.
+# Note: if OpenPhish blocks unauthenticated requests, the command will fail gracefully.
+OPENPHISH_AUTO_UPDATE_ON_STARTUP = True
+OPENPHISH_STARTUP_LIMIT = 300
+# If True: keep only the latest batch from OpenPhish (recommended to avoid unbounded growth).
+OPENPHISH_STARTUP_REPLACE = True

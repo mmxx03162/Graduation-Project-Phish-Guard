@@ -9,7 +9,8 @@ API ENDPOINTS OVERVIEW
 
 POST /api/scan/
     - Main endpoint for URL scanning
-    - Returns detailed analysis with verdict, reason, model votes, HTML analysis
+    - Enforces a database blacklist hard-block before running any AI analysis
+    - Returns verdict, reason, and (when applicable) model votes + HTML analysis
     
 GET /api/scan-logs/
     - Retrieve scan history with pagination, filtering, and search
@@ -33,13 +34,14 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from .models import ScanResult
+from .models import ScanResult, BlacklistedURL
 from .serializers import ScanResultSerializer
 from .predictor import make_final_prediction, get_models_status
 import logging
 import time
+from urllib.parse import urlparse, urlunparse
 
-# Optional django_filters import
+# Optional `django_filters` import (advanced filtering)
 try:
     from django_filters.rest_framework import DjangoFilterBackend
     DJANGO_FILTERS_AVAILABLE = True
@@ -47,8 +49,46 @@ except ImportError:
     DJANGO_FILTERS_AVAILABLE = False
     DjangoFilterBackend = None
 
-# Configure logging
+# Logger configuration
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# URL NORMALIZATION (BLACKLIST MATCHING)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _blacklist_candidates(raw_url: str) -> list[str]:
+    """
+    Generate a small set of URL variants to improve blacklist match rate.
+    External feeds can differ by scheme/casing/trailing slash; we try a few safe variants.
+    """
+    if not raw_url:
+        return []
+
+    raw_url = raw_url.strip()
+    candidates: set[str] = {raw_url, raw_url.rstrip("/")}
+
+    with_scheme = raw_url if "://" in raw_url else f"https://{raw_url}"
+    candidates.add(with_scheme)
+    candidates.add(with_scheme.rstrip("/"))
+
+    try:
+        p = urlparse(with_scheme)
+        scheme = (p.scheme or "https").lower()
+        hostname = (p.hostname or "").lower()
+        if not hostname:
+            return list(candidates)
+
+        # Preserve explicit port if present.
+        netloc = hostname if p.port is None else f"{hostname}:{p.port}"
+
+        # Drop URL fragments (never relevant for server-side threat feeds).
+        normalized = urlunparse((scheme, netloc, p.path or "/", "", p.query, ""))
+        candidates.add(normalized)
+        candidates.add(normalized.rstrip("/"))
+    except Exception:
+        pass
+
+    return [c for c in candidates if c]
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CORS HELPER
@@ -81,17 +121,18 @@ def scan_url_view(request):
     """
     Main URL scanning endpoint.
     
-    Performs 3-level analysis:
-    1. Whitelist check
-    2. AI model predictions (6 models)
-    3. HTML content analysis (only if models flag as phishing)
+    Detection pipeline:
+    0. Blacklist hard-block (database match) → return Phishing immediately
+    1. Whitelist check → return Legitimate immediately
+    2. AI model ensemble (6 models) → majority vote
+    3. HTML content inspection (only if models vote Phishing)
     
     Request Body:
         {
             "url": "https://example.com"
         }
     
-    Response:
+    Response (AI path):
         {
             "id": 123,
             "url": "https://example.com",
@@ -111,6 +152,20 @@ def scan_url_view(request):
             },
             "timestamp": "2024-01-01T12:00:00Z",
             "processing_time": 1.234,
+            "status": "success"
+        }
+
+    Response (blacklist hit):
+        {
+            "id": 123,
+            "url": "https://example.com",
+            "result": "Phishing",
+            "reason": "Blacklisted URL (database match) - blocked before AI analysis",
+            "model_votes": null,
+            "html_analysis": null,
+            "blacklist_hit": true,
+            "timestamp": "2024-01-01T12:00:00Z",
+            "processing_time": 0.012,
             "status": "success"
         }
     
@@ -137,12 +192,39 @@ def scan_url_view(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # ───────────────────────────────────────────────────────────────────
-        # Extract URL and Perform Analysis
+        # Extract URL and run the detection pipeline
         # ───────────────────────────────────────────────────────────────────
         url_to_check = serializer.validated_data['url']
         logger.info(f"Starting analysis for URL: {url_to_check}")
+
+        # ───────────────────────────────────────────────────────────────────
+        # Level 0: Database blacklist (hard-block)
+        # ───────────────────────────────────────────────────────────────────
+        candidates = _blacklist_candidates(url_to_check)
+        if candidates and BlacklistedURL.objects.filter(url__in=candidates).exists():
+            processing_time = time.time() - start_time
+            scan_result = serializer.save(
+                result="Phishing",
+                reason="Blacklisted URL (database match) - blocked before AI analysis",
+            )
+
+            return Response(
+                {
+                    "id": scan_result.id,
+                    "url": scan_result.url,
+                    "result": scan_result.result,
+                    "reason": scan_result.reason,
+                    "model_votes": None,
+                    "html_analysis": None,
+                    "timestamp": scan_result.timestamp,
+                    "processing_time": round(processing_time, 3),
+                    "status": "success",
+                    "blacklist_hit": True,
+                },
+                status=status.HTTP_201_CREATED,
+            )
         
-        # Perform 3-level prediction
+        # Run the full AI pipeline (Levels 1-3)
         prediction_data = make_final_prediction(url_to_check)
         
         # Extract results

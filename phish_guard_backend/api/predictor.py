@@ -7,8 +7,12 @@
 SYSTEM ARCHITECTURE - Multi-Level Detection System
 ═══════════════════════════════════════════════════════════════════════════════
 
+⛔ LEVEL 0: Database Blacklist (Hard-Block)
+   - Enforced at the API layer before calling this predictor
+   - If URL matches `BlacklistedURL` → Return "Phishing" immediately (skip all analysis)
+
 📋 LEVEL 1: Whitelist Check
-   - Check if domain is in trusted whitelist (e.g., google.com, facebook.com)
+   - Check if the domain is in a trusted whitelist (e.g., google.com, facebook.com)
    - If trusted → Return "Legitimate" immediately (no further analysis)
 
 🤖 LEVEL 2: AI Models Voting (6 Models)
@@ -24,17 +28,17 @@ SYSTEM ARCHITECTURE - Multi-Level Detection System
    - Each model votes: 0 = Legitimate, 1 = Phishing
    - Majority vote determines preliminary verdict
 
-🔍 LEVEL 3: HTML Content Analysis (ONLY if models vote Phishing)
+🔍 LEVEL 3: HTML Content Inspection (ONLY if models vote Phishing)
    - If models vote "Legitimate" → Return "Legitimate" (skip Level 3)
-   - If models vote "Phishing" → Perform HTML analysis:
+   - If models vote "Phishing" → Perform HTML inspection:
      • Check for password input fields
      • Verify forms sending data to external domains
      • Detect sensitive keywords (credit card, SSN, etc.)
-   - HTML Analysis Results:
+   - HTML Inspection Outcomes:
      • If suspicious content found → Confirm "Phishing"
      • If content is clean → Override to "Legitimate" (False Positive)
 
-FINAL OUTPUT: Verdict + Detailed Reason + Model Votes + HTML Analysis
+FINAL OUTPUT: Verdict + Detailed Reason + Model Votes + HTML Inspection (optional)
 ═══════════════════════════════════════════════════════════════════════════════
 """
 

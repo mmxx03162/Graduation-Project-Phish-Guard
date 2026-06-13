@@ -1,10 +1,10 @@
 # api/admin.py
 
 from django.contrib import admin
-from .models import ScanResult # الخطوة الأولى: استيراد الموديل بتاعنا من ملف models.py
+from .models import ScanResult, BlacklistedURL  # استيراد الموديلات من models.py
 
 # Register your models here.
 
-# الخطوة الثانية: تسجيل الموديل في موقع الأدمن
-# السطر ده معناه: "يا لوحة التحكم، من فضلك اعرضي جدول ScanResult عندي"
+# تسجيل الموديلات في لوحة الـ Admin لمتابعة نتائج الـ scans والبلاك ليست.
 admin.site.register(ScanResult)
+admin.site.register(BlacklistedURL)
